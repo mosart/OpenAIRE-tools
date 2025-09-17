@@ -158,13 +158,16 @@ def transform_json_to_parquet(json_gz_files: List[Path], output_parquet_path: Pa
 def process_subgraph_data(
     url: str = "https://zenodo.org/records/14887484/files/aurora.tar?download=1",
     base_folder: Path | str = Path("./data"),
-    dataset: str = "aurora",
+    dataset: str | None = None,
 ) -> dict:
     logger = get_run_logger()
     base_folder = Path(base_folder)
 
     timestamp = datetime.utcnow().strftime("%Y-%m-%d")
     file_name = url.split("/")[-1].split("?")[0]
+    # Auto-infer dataset name from URL if not provided
+    if not dataset or not str(dataset).strip():
+        dataset = Path(file_name).stem
 
     input_folder = base_folder / "01_input"
     extracted_folder = base_folder / "02_extracted" / f"{file_name}_{timestamp}"
@@ -206,7 +209,7 @@ def orchestrate_etl_and_enrichments(
     url: str = "https://zenodo.org/records/14887484/files/aurora.tar?download=1",
     base_folder: Path | str = Path("./data"),
     input_parquet: Path | str | None = None,
-    dataset: str = "aurora",
+    dataset: str | None = None,
     # Toggles
     enable_altmetric: bool = True,
     enable_overton: bool = True,
@@ -247,6 +250,14 @@ def orchestrate_etl_and_enrichments(
     base_folder = Path(base_folder)
     from importlib import import_module
     tasks_mod = import_module("prefect.flows")
+
+    # Determine dataset name (prefer explicit, else derive from input or URL)
+    if not dataset or not str(dataset).strip():
+        if input_parquet:
+            dataset = Path(str(input_parquet)).stem
+        else:
+            _fname = url.split("/")[-1].split("?")[0]
+            dataset = Path(_fname).stem
 
     # Determine input parquet
     if input_parquet:
@@ -352,7 +363,7 @@ if __name__ == "__main__":
     # ETL params
     parser.add_argument("--url", type=str, default="https://zenodo.org/records/14887484/files/aurora.tar?download=1")
     parser.add_argument("--base-folder", type=str, default="./data")
-    parser.add_argument("--dataset", type=str, default="aurora")
+    parser.add_argument("--dataset", type=str, default=None)
 
     # Common enrichment params
     parser.add_argument("--input-parquet", type=str, default="")
@@ -630,8 +641,11 @@ def altmetric_enrichment_flow(
     rate_per_minute: float = 60.0,
     big_pause_every: int | None = None,
     big_pause_seconds: float = 0.0,
-    dataset: str = "aurora",
+    dataset: str | None = None,
 ):
+    # Infer dataset from parquet path if not provided
+    if not dataset or not str(dataset).strip():
+        dataset = Path(str(input_parquet)).stem
     return altmetric_enrich(
         input_parquet,
         output_parquet,
@@ -724,8 +738,10 @@ def overton_enrichment_flow(
     rate_per_minute: float = 30.0,
     big_pause_every: int | None = None,
     big_pause_seconds: float = 0.0,
-    dataset: str = "aurora",
+    dataset: str | None = None,
 ):
+    if not dataset or not str(dataset).strip():
+        dataset = Path(str(input_parquet)).stem
     return overton_enrich(
         input_parquet,
         output_parquet,
@@ -849,8 +865,10 @@ def aurora_sdg_enrichment_flow(
     rate_per_minute: float = 60.0,
     big_pause_every: int | None = None,
     big_pause_seconds: float = 0.0,
-    dataset: str = "aurora",
+    dataset: str | None = None,
 ):
+    if not dataset or not str(dataset).strip():
+        dataset = Path(str(input_parquet)).stem
     return aurora_sdg_classify(
         input_parquet,
         output_parquet,
@@ -940,8 +958,10 @@ def genderize_enrichment_flow(
     rate_per_minute: float = 100.0,
     big_pause_every: int | None = None,
     big_pause_seconds: float = 0.0,
-    dataset: str = "aurora",
+    dataset: str | None = None,
 ):
+    if not dataset or not str(dataset).strip():
+        dataset = Path(str(input_parquet)).stem
     return genderize_enrich(
         input_parquet,
         output_parquet,
