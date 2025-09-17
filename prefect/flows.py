@@ -245,6 +245,8 @@ def orchestrate_etl_and_enrichments(
 ):
     logger = get_run_logger()
     base_folder = Path(base_folder)
+    from importlib import import_module
+    tasks_mod = import_module("prefect.flows")
 
     # Determine input parquet
     if input_parquet:
@@ -264,7 +266,7 @@ def orchestrate_etl_and_enrichments(
     # Altmetric
     if enable_altmetric:
         altmetric_out = processing_folder / f"{folder_name}-altmetric.parquet"
-        futures["altmetric"] = altmetric_enrich.submit(
+        futures["altmetric"] = tasks_mod.altmetric_enrich.submit(
             input_parquet=parquet_path,
             output_parquet=altmetric_out,
             record_id_column=record_id_column,
@@ -279,7 +281,7 @@ def orchestrate_etl_and_enrichments(
     # Overton
     if enable_overton:
         overton_out = processing_folder / f"{folder_name}-overton.parquet"
-        futures["overton"] = overton_enrich.submit(
+        futures["overton"] = tasks_mod.overton_enrich.submit(
             input_parquet=parquet_path,
             output_parquet=overton_out,
             record_id_column=record_id_column,
@@ -294,7 +296,7 @@ def orchestrate_etl_and_enrichments(
     # SDG
     if enable_sdg:
         sdg_out = processing_folder / f"{folder_name}-sdg-{model}.parquet"
-        futures["sdg"] = aurora_sdg_classify.submit(
+        futures["sdg"] = tasks_mod.aurora_sdg_classify.submit(
             input_parquet=parquet_path,
             output_parquet=sdg_out,
             record_id_column=record_id_column,
@@ -310,7 +312,7 @@ def orchestrate_etl_and_enrichments(
     # Genderize
     if enable_genderize:
         genderize_out = processing_folder / f"{folder_name}-genderize.parquet"
-        futures["genderize"] = genderize_enrich.submit(
+        futures["genderize"] = tasks_mod.genderize_enrich.submit(
             input_parquet=parquet_path,
             output_parquet=genderize_out,
             record_id_column=record_id_column,
