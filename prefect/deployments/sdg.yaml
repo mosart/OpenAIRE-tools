@@ -1,0 +1,23 @@
+# Prefect v3 Deployment: Aurora SDG classification
+name: sdg
+description: Classify abstracts into SDGs using Aurora SDG API
+entrypoint: prefect/flows.py:aurora_sdg_enrichment_flow
+parameters:
+  input_parquet: null
+  output_parquet: "data/04_processed/sdg_aurora.parquet"
+  record_id_column: record_id
+  abstract_column: abstract
+  model: aurora-sdg
+  min_tokens: 100
+  limit: null
+  rate_per_minute: 60
+  big_pause_every: null
+  big_pause_seconds: 0
+tags: []
+schedule: null
+work_pool:
+  name: default-pool
+  work_queue_name: default
+  job_variables: {}
+pull: []
+

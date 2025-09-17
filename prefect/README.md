@@ -355,6 +355,27 @@ In the Prefect UI
   - Also set API keys and rate limits under the same Parameters panel.
 
 
+## 11) Ready-made deployment YAMLs
+
+Pre-baked deployment specs with default parameters live in `prefect/deployments/`. Apply them directly:
+
+```bash
+# Ensure a work pool exists and a worker is running
+prefect work-pool create -t process default-pool || true
+prefect worker start -p default-pool  # run in another terminal
+
+# Apply deployments
+prefect deployment apply prefect/deployments/etl.yaml
+prefect deployment apply prefect/deployments/orchestrator.yaml
+prefect deployment apply prefect/deployments/altmetric.yaml
+prefect deployment apply prefect/deployments/overton.yaml
+prefect deployment apply prefect/deployments/sdg.yaml
+prefect deployment apply prefect/deployments/genderize.yaml
+```
+
+Edit any YAML to change defaults (paths, columns, rates), then re-apply. You can also override parameters per run in the UI.
+
+
 - Network: ensure the URL is reachable; the download task retries on transient errors.
 - Disk space: large subgraphs require several GB free for extraction and Parquet.
 - Permissions: run from a location where the process can create `./data/**` folders.

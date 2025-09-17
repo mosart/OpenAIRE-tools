@@ -1,0 +1,22 @@
+# Prefect v3 Deployment: Overton enrichment
+name: overton
+description: Fetch Overton policy mentions for DOIs
+entrypoint: prefect/flows.py:overton_enrichment_flow
+parameters:
+  input_parquet: null
+  output_parquet: "data/04_processed/overton.parquet"
+  record_id_column: record_id
+  doi_column: doi
+  api_key: null
+  limit: null
+  rate_per_minute: 30
+  big_pause_every: null
+  big_pause_seconds: 0
+tags: []
+schedule: null
+work_pool:
+  name: default-pool
+  work_queue_name: default
+  job_variables: {}
+pull: []
+

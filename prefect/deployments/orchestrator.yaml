@@ -1,0 +1,46 @@
+# Prefect v3 Deployment: Orchestrator (ETL + parallel enrichments)
+name: etl-and-enrich
+description: Run ETL then Altmetric, Overton, SDG, and Genderize in parallel
+entrypoint: prefect/flows.py:orchestrate_etl_and_enrichments
+parameters:
+  url: "https://zenodo.org/records/14887484/files/aurora.tar?download=1"
+  base_folder: "./data"
+  input_parquet: null
+  enable_altmetric: true
+  enable_overton: true
+  enable_sdg: true
+  enable_genderize: true
+  record_id_column: record_id
+  id_priority: ["doi", "pmid", "pmcid", "arxiv_id"]
+  altmetric_api_key: null
+  altmetric_limit: null
+  altmetric_rate_per_minute: 60
+  altmetric_big_pause_every: 500
+  altmetric_big_pause_seconds: 30
+  doi_column: doi
+  overton_api_key: null
+  overton_limit: null
+  overton_rate_per_minute: 30
+  overton_big_pause_every: null
+  overton_big_pause_seconds: 0
+  abstract_column: abstract
+  model: aurora-sdg
+  min_tokens: 100
+  sdg_limit: null
+  sdg_rate_per_minute: 60
+  sdg_big_pause_every: null
+  sdg_big_pause_seconds: 0
+  first_name_column: first_name
+  genderize_api_key: null
+  genderize_limit: null
+  genderize_rate_per_minute: 100
+  genderize_big_pause_every: null
+  genderize_big_pause_seconds: 0
+tags: []
+schedule: null
+work_pool:
+  name: default-pool
+  work_queue_name: default
+  job_variables: {}
+pull: []
+

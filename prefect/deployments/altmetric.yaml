@@ -1,0 +1,22 @@
+# Prefect v3 Deployment: Altmetric enrichment
+name: altmetric
+description: Fetch Altmetric data for records with identifiers
+entrypoint: prefect/flows.py:altmetric_enrichment_flow
+parameters:
+  input_parquet: null
+  output_parquet: "data/04_processed/altmetric.parquet"
+  record_id_column: record_id
+  id_priority: ["doi", "pmid", "pmcid", "arxiv_id"]
+  api_key: null
+  limit: null
+  rate_per_minute: 60
+  big_pause_every: 500
+  big_pause_seconds: 30
+tags: []
+schedule: null
+work_pool:
+  name: default-pool
+  work_queue_name: default
+  job_variables: {}
+pull: []
+

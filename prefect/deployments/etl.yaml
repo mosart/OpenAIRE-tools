@@ -1,0 +1,15 @@
+# Prefect v3 Deployment: ETL only
+name: subgraph-etl
+description: Download, extract, and transform subgraph JSON to Parquet
+entrypoint: prefect/flows.py:process_subgraph_data
+parameters:
+  url: "https://zenodo.org/records/14887484/files/aurora.tar?download=1"
+  base_folder: "./data"
+tags: []
+schedule: null
+work_pool:
+  name: default-pool
+  work_queue_name: default
+  job_variables: {}
+pull: []
+

@@ -1,0 +1,22 @@
+# Prefect v3 Deployment: Genderize enrichment
+name: genderize
+description: Infer gender probabilities from first names
+entrypoint: prefect/flows.py:genderize_enrichment_flow
+parameters:
+  input_parquet: null
+  output_parquet: "data/04_processed/genderize.parquet"
+  record_id_column: record_id
+  first_name_column: first_name
+  api_key: null
+  limit: null
+  rate_per_minute: 100
+  big_pause_every: null
+  big_pause_seconds: 0
+tags: []
+schedule: null
+work_pool:
+  name: default-pool
+  work_queue_name: default
+  job_variables: {}
+pull: []
+
