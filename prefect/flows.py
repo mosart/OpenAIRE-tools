@@ -6,6 +6,7 @@ from datetime import datetime
 import time
 import json
 from pathlib import Path
+import sys
 from typing import Iterable, List, Optional
 
 import duckdb
@@ -248,8 +249,7 @@ def orchestrate_etl_and_enrichments(
 ):
     logger = get_run_logger()
     base_folder = Path(base_folder)
-    from importlib import import_module
-    tasks_mod = import_module("prefect.flows")
+    tasks_mod = sys.modules[__name__]
 
     # Determine dataset name (prefer explicit, else derive from input or URL)
     if not dataset or not str(dataset).strip():
@@ -393,8 +393,19 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    # Derive dataset early for run name clarity
+    dataset_val = (args.dataset or "").strip()
+    if not dataset_val:
+        if args.input_parquet:
+            dataset_val = Path(args.input_parquet).stem
+        elif args.url:
+            fname = args.url.split("/")[-1].split("?")[0]
+            dataset_val = Path(fname).stem
+        else:
+            dataset_val = "dataset"
+
     if args.flow == "etl":
-        result = process_subgraph_data(url=args.url, base_folder=args.base_folder, dataset=args.dataset)
+        result = process_subgraph_data(url=args.url, base_folder=args.base_folder, dataset=dataset_val)
         print(result)
     elif args.flow == "orchestrator":
         id_priority = [s.strip() for s in (args.id_priority or "").split(",") if s.strip()]
@@ -402,7 +413,7 @@ if __name__ == "__main__":
             url=args.url,
             base_folder=args.base_folder,
             input_parquet=(args.input_parquet or None),
-            dataset=args.dataset,
+            dataset=dataset_val,
             enable_altmetric=True,
             enable_overton=True,
             enable_sdg=True,
@@ -447,7 +458,7 @@ if __name__ == "__main__":
             rate_per_minute=args.rate_per_minute or 60.0,
             big_pause_every=args.big_pause_every,
             big_pause_seconds=args.big_pause_seconds,
-            dataset=args.dataset,
+            dataset=dataset_val,
         )
     elif args.flow == "overton":
         overton_enrichment_flow(
@@ -460,7 +471,7 @@ if __name__ == "__main__":
             rate_per_minute=args.rate_per_minute or 30.0,
             big_pause_every=args.big_pause_every,
             big_pause_seconds=args.big_pause_seconds,
-            dataset=args.dataset,
+            dataset=dataset_val,
         )
     elif args.flow == "sdg":
         aurora_sdg_enrichment_flow(
@@ -474,7 +485,7 @@ if __name__ == "__main__":
             rate_per_minute=args.rate_per_minute or 60.0,
             big_pause_every=args.big_pause_every,
             big_pause_seconds=args.big_pause_seconds,
-            dataset=args.dataset,
+            dataset=dataset_val,
         )
     elif args.flow == "genderize":
         genderize_enrichment_flow(
@@ -487,7 +498,7 @@ if __name__ == "__main__":
             rate_per_minute=args.rate_per_minute or 100.0,
             big_pause_every=args.big_pause_every,
             big_pause_seconds=args.big_pause_seconds,
-            dataset=args.dataset,
+            dataset=dataset_val,
         )
 
 
