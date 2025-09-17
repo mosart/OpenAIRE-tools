@@ -24,7 +24,7 @@ def _sanitize_paths_for_sql(paths: Iterable[Path]) -> str:
     return ",".join(parts)
 
 
-@task(retries=3, retry_delay_seconds=10)
+@task(name="download-file", retries=3, retry_delay_seconds=10, task_run_name="download {save_path}")
 def download_file(url: str, save_path: Path, chunk_size: int = 1024 * 1024) -> Path:
     logger = get_run_logger()
     save_path = Path(save_path)
@@ -45,7 +45,7 @@ def download_file(url: str, save_path: Path, chunk_size: int = 1024 * 1024) -> P
     return save_path
 
 
-@task
+@task(name="extract-tar", task_run_name="extract {tar_path}")
 def extract_tar(tar_path: Path, extract_to: Path) -> Path:
     logger = get_run_logger()
     tar_path = Path(tar_path)
@@ -59,7 +59,7 @@ def extract_tar(tar_path: Path, extract_to: Path) -> Path:
     return extract_to
 
 
-@task
+@task(name="find-latest-subdir", task_run_name="latest-of {root}")
 def find_latest_subdirectory(root: Path) -> Optional[Path]:
     root = Path(root)
     subdirs = [p for p in root.iterdir() if p.is_dir()]
@@ -68,7 +68,7 @@ def find_latest_subdirectory(root: Path) -> Optional[Path]:
     return max(subdirs, key=lambda p: p.stat().st_mtime)
 
 
-@task
+@task(name="choose-json-root", task_run_name="json-root {extracted_root}")
 def choose_json_root(extracted_root: Path) -> Path:
     """Return the directory containing the JSON files.
 
@@ -81,13 +81,13 @@ def choose_json_root(extracted_root: Path) -> Path:
     return root
 
 
-@task
+@task(name="list-json-gz", task_run_name="list-json {folder}")
 def list_json_gz_files(folder: Path) -> List[Path]:
     folder = Path(folder)
     return sorted(folder.glob("*.json.gz"))
 
 
-@task
+@task(name="transform-json-to-parquet", task_run_name="to-parquet {output_parquet_path}")
 def transform_json_to_parquet(json_gz_files: List[Path], output_parquet_path: Path) -> Path:
     logger = get_run_logger()
     if not json_gz_files:
@@ -114,10 +114,11 @@ def transform_json_to_parquet(json_gz_files: List[Path], output_parquet_path: Pa
     return out
 
 
-@flow(name="subgraph-etl", task_runner=ConcurrentTaskRunner())
+@flow(name="subgraph-etl", task_runner=ConcurrentTaskRunner(), flow_run_name="etl-{dataset}")
 def process_subgraph_data(
     url: str = "https://zenodo.org/records/14887484/files/aurora.tar?download=1",
     base_folder: Path | str = Path("./data"),
+    dataset: str = "aurora",
 ) -> dict:
     logger = get_run_logger()
     base_folder = Path(base_folder)
@@ -159,12 +160,13 @@ def process_subgraph_data(
 # Orchestrator: ETL then parallel enrichments
 # -----------------------------
 
-@flow(name="etl-and-enrich", task_runner=ConcurrentTaskRunner())
+@flow(name="etl-and-enrich", task_runner=ConcurrentTaskRunner(), flow_run_name="orchestrator-{dataset}")
 def orchestrate_etl_and_enrichments(
     # ETL
     url: str = "https://zenodo.org/records/14887484/files/aurora.tar?download=1",
     base_folder: Path | str = Path("./data"),
     input_parquet: Path | str | None = None,
+    dataset: str = "aurora",
     # Toggles
     enable_altmetric: bool = True,
     enable_overton: bool = True,
@@ -308,6 +310,7 @@ if __name__ == "__main__":
     # ETL params
     parser.add_argument("--url", type=str, default="https://zenodo.org/records/14887484/files/aurora.tar?download=1")
     parser.add_argument("--base-folder", type=str, default="./data")
+    parser.add_argument("--dataset", type=str, default="aurora")
 
     # Common enrichment params
     parser.add_argument("--input-parquet", type=str, default="")
@@ -338,7 +341,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.flow == "etl":
-        result = process_subgraph_data(url=args.url, base_folder=args.base_folder)
+        result = process_subgraph_data(url=args.url, base_folder=args.base_folder, dataset=args.dataset)
         print(result)
     elif args.flow == "orchestrator":
         id_priority = [s.strip() for s in (args.id_priority or "").split(",") if s.strip()]
@@ -346,6 +349,7 @@ if __name__ == "__main__":
             url=args.url,
             base_folder=args.base_folder,
             input_parquet=(args.input_parquet or None),
+            dataset=args.dataset,
             enable_altmetric=True,
             enable_overton=True,
             enable_sdg=True,
@@ -390,6 +394,7 @@ if __name__ == "__main__":
             rate_per_minute=args.rate_per_minute or 60.0,
             big_pause_every=args.big_pause_every,
             big_pause_seconds=args.big_pause_seconds,
+            dataset=args.dataset,
         )
     elif args.flow == "overton":
         overton_enrichment_flow(
@@ -402,6 +407,7 @@ if __name__ == "__main__":
             rate_per_minute=args.rate_per_minute or 30.0,
             big_pause_every=args.big_pause_every,
             big_pause_seconds=args.big_pause_seconds,
+            dataset=args.dataset,
         )
     elif args.flow == "sdg":
         aurora_sdg_enrichment_flow(
@@ -415,6 +421,7 @@ if __name__ == "__main__":
             rate_per_minute=args.rate_per_minute or 60.0,
             big_pause_every=args.big_pause_every,
             big_pause_seconds=args.big_pause_seconds,
+            dataset=args.dataset,
         )
     elif args.flow == "genderize":
         genderize_enrichment_flow(
@@ -427,6 +434,7 @@ if __name__ == "__main__":
             rate_per_minute=args.rate_per_minute or 100.0,
             big_pause_every=args.big_pause_every,
             big_pause_seconds=args.big_pause_seconds,
+            dataset=args.dataset,
         )
 
 
@@ -482,7 +490,7 @@ def _validate_any_identifier(df: pd.DataFrame, candidates: list[str]) -> list[st
 # Altmetric enrichment
 # -----------------------------
 
-@task(retries=2, retry_delay_seconds=10)
+@task(name="altmetric-enrich", retries=2, retry_delay_seconds=10, task_run_name="altmetric {output_parquet}")
 def altmetric_enrich(
     input_parquet: Path | str,
     output_parquet: Path | str,
@@ -569,7 +577,7 @@ def altmetric_enrich(
     return out
 
 
-@flow(name="altmetric-enrichment")
+@flow(name="altmetric-enrichment", flow_run_name="altmetric-{dataset}")
 def altmetric_enrichment_flow(
     input_parquet: Path | str,
     output_parquet: Path | str,
@@ -580,6 +588,7 @@ def altmetric_enrichment_flow(
     rate_per_minute: float = 60.0,
     big_pause_every: int | None = None,
     big_pause_seconds: float = 0.0,
+    dataset: str = "aurora",
 ):
     return altmetric_enrich(
         input_parquet,
@@ -598,7 +607,7 @@ def altmetric_enrichment_flow(
 # Overton enrichment
 # -----------------------------
 
-@task(retries=2, retry_delay_seconds=10)
+@task(name="overton-enrich", retries=2, retry_delay_seconds=10, task_run_name="overton {output_parquet}")
 def overton_enrich(
     input_parquet: Path | str,
     output_parquet: Path | str,
@@ -662,7 +671,7 @@ def overton_enrich(
     return out
 
 
-@flow(name="overton-enrichment")
+@flow(name="overton-enrichment", flow_run_name="overton-{dataset}")
 def overton_enrichment_flow(
     input_parquet: Path | str,
     output_parquet: Path | str,
@@ -673,6 +682,7 @@ def overton_enrichment_flow(
     rate_per_minute: float = 30.0,
     big_pause_every: int | None = None,
     big_pause_seconds: float = 0.0,
+    dataset: str = "aurora",
 ):
     return overton_enrich(
         input_parquet,
@@ -691,7 +701,7 @@ def overton_enrichment_flow(
 # Aurora SDG classification
 # -----------------------------
 
-@task(retries=2, retry_delay_seconds=10)
+@task(name="aurora-sdg-classify", retries=2, retry_delay_seconds=10, task_run_name="sdg {model} {output_parquet}")
 def aurora_sdg_classify(
     input_parquet: Path | str,
     output_parquet: Path | str,
@@ -785,7 +795,7 @@ def aurora_sdg_classify(
     return out
 
 
-@flow(name="aurora-sdg-enrichment")
+@flow(name="aurora-sdg-enrichment", flow_run_name="sdg-{model}-{dataset}")
 def aurora_sdg_enrichment_flow(
     input_parquet: Path | str,
     output_parquet: Path | str,
@@ -797,6 +807,7 @@ def aurora_sdg_enrichment_flow(
     rate_per_minute: float = 60.0,
     big_pause_every: int | None = None,
     big_pause_seconds: float = 0.0,
+    dataset: str = "aurora",
 ):
     return aurora_sdg_classify(
         input_parquet,
@@ -816,7 +827,7 @@ def aurora_sdg_enrichment_flow(
 # Genderize enrichment
 # -----------------------------
 
-@task(retries=2, retry_delay_seconds=10)
+@task(name="genderize-enrich", retries=2, retry_delay_seconds=10, task_run_name="genderize {output_parquet}")
 def genderize_enrich(
     input_parquet: Path | str,
     output_parquet: Path | str,
@@ -876,7 +887,7 @@ def genderize_enrich(
     return out
 
 
-@flow(name="genderize-enrichment")
+@flow(name="genderize-enrichment", flow_run_name="genderize-{dataset}")
 def genderize_enrichment_flow(
     input_parquet: Path | str,
     output_parquet: Path | str,
@@ -887,6 +898,7 @@ def genderize_enrichment_flow(
     rate_per_minute: float = 100.0,
     big_pause_every: int | None = None,
     big_pause_seconds: float = 0.0,
+    dataset: str = "aurora",
 ):
     return genderize_enrich(
         input_parquet,

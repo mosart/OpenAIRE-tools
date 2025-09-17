@@ -12,6 +12,7 @@ parameters:
   rate_per_minute: 100
   big_pause_every: null
   big_pause_seconds: 0
+  dataset: "aurora"
 tags: []
 schedule: null
 work_pool:
@@ -19,4 +20,3 @@ work_pool:
   work_queue_name: default
   job_variables: {}
 pull: []
-

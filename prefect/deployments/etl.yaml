@@ -5,6 +5,7 @@ entrypoint: prefect/flows.py:process_subgraph_data
 parameters:
   url: "https://zenodo.org/records/14887484/files/aurora.tar?download=1"
   base_folder: "./data"
+  dataset: "aurora"
 tags: []
 schedule: null
 work_pool:
@@ -12,4 +13,3 @@ work_pool:
   work_queue_name: default
   job_variables: {}
 pull: []
-

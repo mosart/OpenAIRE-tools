@@ -249,6 +249,7 @@ Run locally:
 python prefect/flows.py --flow orchestrator \
   --url "https://zenodo.org/records/14887484/files/aurora.tar?download=1" \
   --base-folder ./data \
+  --dataset aurora \
   --record-id-column record_id \
   --id-priority doi,pmid,pmcid,arxiv_id \
   --doi-column doi \
