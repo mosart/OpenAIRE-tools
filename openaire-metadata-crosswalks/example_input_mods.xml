@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mods:mods xmlns:mods="http://www.loc.gov/mods/v3"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="http://www.loc.gov/mods/v3 http://www.loc.gov/standards/mods/v3/mods-3-6.xsd"
+           version="3.6">
+  <mods:titleInfo>
+    <mods:title>Example Publication Title</mods:title>
+  </mods:titleInfo>
+  <mods:name type="personal">
+    <mods:namePart type="given">Jane</mods:namePart>
+    <mods:namePart type="family">Doe</mods:namePart>
+    <mods:role>
+      <mods:roleTerm type="code" authority="marcrelator">aut</mods:roleTerm>
+    </mods:role>
+  </mods:name>
+  <mods:abstract>This is an example abstract for the publication.</mods:abstract>
+  <mods:originInfo>
+    <mods:dateIssued encoding="w3cdtf">2024-12-01</mods:dateIssued>
+  </mods:originInfo>
+  <mods:identifier type="doi" typeURI="http://id.loc.gov/vocabulary/identifiers/doi">10.1234/example-doi</mods:identifier>
+</mods:mods>

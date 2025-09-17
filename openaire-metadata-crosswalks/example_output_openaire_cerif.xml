@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<cerif:result xmlns:cerif="https://www.openaire.eu/cerif-profile/1.2/">
+  <cerif:Title>Example Publication Title</cerif:Title>
+  <cerif:Abstract>This is an example abstract for the publication.</cerif:Abstract>
+  <cerif:DOI>10.1234/example-doi</cerif:DOI>
+  <cerif:PublicationDate>2024-12-01</cerif:PublicationDate>
+  <cerif:Author>
+    <cerif:GivenName>Jane</cerif:GivenName>
+    <cerif:FamilyName>Doe</cerif:FamilyName>
+  </cerif:Author>
+</cerif:result>

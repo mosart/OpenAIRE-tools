@@ -1,0 +1,7 @@
+subject_id	predicate_id	object_id	mapping_justification
+mods:titleInfo/title	skos:exactMatch	cerif:result/Title	sema:expert_curated
+mods:name/namePart[@type='family']	skos:exactMatch	cerif:person/FamilyName	sema:expert_curated
+mods:name/namePart[@type='given']	skos:exactMatch	cerif:person/GivenName	sema:expert_curated
+mods:originInfo/dateIssued	skos:exactMatch	cerif:result/PublicationDate	sema:expert_curated
+mods:identifier[@type='doi']	skos:exactMatch	cerif:result/DOI	sema:expert_curated
+mods:abstract	skos:exactMatch	cerif:result/Abstract	sema:expert_curated
