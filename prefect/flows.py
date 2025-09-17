@@ -30,22 +30,58 @@ def download_file(url: str, save_path: Path, chunk_size: int = 1024 * 1024) -> P
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
+    def _validate_tar(path: Path) -> None:
+        try:
+            with tarfile.open(path, "r:*") as tar:
+                # Force reading headers to detect truncation
+                tar.getmembers()
+        except tarfile.ReadError as e:
+            raise ValueError(f"Downloaded file is not a valid tar archive or is truncated: {e}")
+
+    # If a file already exists, verify it is a valid tar; if not, re-download
     if save_path.exists() and save_path.stat().st_size > 0:
-        logger.info(f"File already exists: {save_path}")
-        return save_path
+        try:
+            _validate_tar(save_path)
+            logger.info(f"File already exists and validated: {save_path}")
+            return save_path
+        except Exception as e:
+            logger.warning(f"Existing file invalid, re-downloading: {e}")
+            try:
+                save_path.unlink()
+            except Exception:
+                pass
 
     logger.info(f"Downloading {url} -> {save_path}")
-    with requests.get(url, stream=True, timeout=60) as r:
+    with requests.get(url, stream=True, timeout=120) as r:
         r.raise_for_status()
-        with open(save_path, "wb") as f:
+        expected = None
+        try:
+            expected = int(r.headers.get("Content-Length") or 0) or None
+        except Exception:
+            expected = None
+        downloaded = 0
+        tmp_path = save_path.with_suffix(save_path.suffix + ".part")
+        with open(tmp_path, "wb") as f:
             for chunk in r.iter_content(chunk_size=chunk_size):
                 if chunk:
                     f.write(chunk)
-    logger.info(f"Downloaded: {save_path} ({save_path.stat().st_size} bytes)")
+                    downloaded += len(chunk)
+        tmp_path.replace(save_path)
+
+    # Validate size if known
+    if expected is not None and downloaded != expected:
+        try:
+            save_path.unlink()
+        finally:
+            raise ValueError(f"Download size mismatch: got {downloaded} bytes, expected {expected}")
+
+    # Validate tar structure to prevent extraction errors later
+    _validate_tar(save_path)
+    logger.info(f"Downloaded and validated: {save_path} ({save_path.stat().st_size} bytes)")
     return save_path
 
 
-@task(name="extract-tar", task_run_name="extract {tar_path}")
+@task(name="extract-tar", task_run_name="extract {tar_path}", retries=2, retry_delay_seconds=10)
 def extract_tar(tar_path: Path, extract_to: Path) -> Path:
     logger = get_run_logger()
     tar_path = Path(tar_path)
@@ -53,8 +89,12 @@ def extract_tar(tar_path: Path, extract_to: Path) -> Path:
     extract_to.mkdir(parents=True, exist_ok=True)
 
     logger.info(f"Extracting {tar_path} -> {extract_to}")
-    with tarfile.open(tar_path, "r") as tar:
-        tar.extractall(path=extract_to)
+    try:
+        with tarfile.open(tar_path, "r:*") as tar:
+            tar.extractall(path=extract_to)
+    except tarfile.ReadError as e:
+        logger.error(f"Extraction failed due to tar corruption: {e}")
+        raise
     logger.info(f"Extracted to: {extract_to}")
     return extract_to
 
@@ -211,7 +251,7 @@ def orchestrate_etl_and_enrichments(
         parquet_path = Path(input_parquet)
         logger.info(f"Using provided parquet: {parquet_path}")
     else:
-        etl = process_subgraph_data(url=url, base_folder=base_folder)
+        etl = process_subgraph_data(url=url, base_folder=base_folder, dataset=dataset)
         parquet_path = Path(etl["parquet"])  # type: ignore[index]
         logger.info(f"ETL parquet: {parquet_path}")
 
