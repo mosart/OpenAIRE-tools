@@ -39,6 +39,19 @@ prefect server start
 - The local UI opens at http://127.0.0.1:4200
 - Keep this process running while you execute flows/workers.
 
+Configure your shell to talk to the server API:
+
+```bash
+# Bash/Zsh
+export PREFECT_API_URL="http://127.0.0.1:4200/api"
+
+# PowerShell
+$env:PREFECT_API_URL = "http://127.0.0.1:4200/api"
+
+# (Optional) persist this setting
+prefect config set PREFECT_API_URL="http://127.0.0.1:4200/api"
+```
+
 
 ## 3) Run the flow locally (no deployment)
 
@@ -122,78 +135,61 @@ prefect work-pool create -t process default-pool
 prefect worker start -p default-pool
 ```
 
-Then, build and apply a deployment for the flow:
+Then, create a deployment for the flow (Prefect v3):
 
+Option A — one step (recommended):
 ```bash
-prefect deployment build prefect/flows.py:process_subgraph_data \
+prefect deploy prefect/flows.py:process_subgraph_data \
   -n subgraph-etl \
   -p default-pool \
   -q default \
   --param url="https://zenodo.org/records/14887484/files/aurora.tar?download=1" \
-  --param base_folder="./data" \
-  -o prefect_deploy.yaml
+  --param base_folder="./data"
+```
 
-prefect deployment apply prefect_deploy.yaml
+Option B — from YAML spec:
+```bash
+prefect deployments apply prefect/deployments/etl.yaml
 ```
 
 Kick off a run from CLI (or use the UI):
 
 ```bash
-prefect deployment run 'subgraph-etl/process_subgraph_data' \
+prefect deployments run 'subgraph-etl/process_subgraph_data' \
   --param url="https://zenodo.org/records/14887484/files/aurora.tar?download=1" \
   --param base_folder="./data"
 
-# Optionally build deployments for enrichment flows too, e.g.:
-prefect deployment build prefect/flows.py:altmetric_enrichment_flow \
-  -n altmetric \
-  -p default-pool \
-  -q default \
+# Optionally create deployments for enrichment flows too, e.g. (one-step):
+prefect deploy prefect/flows.py:altmetric_enrichment_flow -n altmetric -p default-pool -q default \
   --param record_id_column=record_id \
   --param id_priority='["doi","pmid","pmcid","arxiv_id"]' \
   --param api_key=null \
   --param limit=null \
   --param rate_per_minute=60 \
   --param big_pause_every=500 \
-  --param big_pause_seconds=30 \
-  -o altmetric_deploy.yaml
-prefect deployment apply altmetric_deploy.yaml
+  --param big_pause_seconds=30
 
-prefect deployment build prefect/flows.py:overton_enrichment_flow \
-  -n overton \
-  -p default-pool \
-  -q default \
+prefect deploy prefect/flows.py:overton_enrichment_flow -n overton -p default-pool -q default \
   --param record_id_column=record_id \
   --param doi_column=doi \
   --param api_key=null \
   --param limit=null \
-  --param rate_per_minute=30 \
-  -o overton_deploy.yaml
-prefect deployment apply overton_deploy.yaml
+  --param rate_per_minute=30
 
-prefect deployment build prefect/flows.py:aurora_sdg_enrichment_flow \
-  -n sdg \
-  -p default-pool \
-  -q default \
+prefect deploy prefect/flows.py:aurora_sdg_enrichment_flow -n sdg -p default-pool -q default \
   --param record_id_column=record_id \
   --param abstract_column=abstract \
   --param model=aurora-sdg \
   --param min_tokens=100 \
   --param limit=null \
-  --param rate_per_minute=60 \
-  -o sdg_deploy.yaml
-prefect deployment apply sdg_deploy.yaml
+  --param rate_per_minute=60
 
-prefect deployment build prefect/flows.py:genderize_enrichment_flow \
-  -n genderize \
-  -p default-pool \
-  -q default \
+prefect deploy prefect/flows.py:genderize_enrichment_flow -n genderize -p default-pool -q default \
   --param record_id_column=record_id \
   --param first_name_column=first_name \
   --param api_key=null \
   --param limit=null \
-  --param rate_per_minute=100 \
-  -o genderize_deploy.yaml
-prefect deployment apply genderize_deploy.yaml
+  --param rate_per_minute=100
 ```
 
 Notes:
@@ -262,7 +258,7 @@ python prefect/flows.py --flow orchestrator \
 
 Create a deployment and start from the UI:
 ```bash
-prefect deployment build prefect/flows.py:orchestrate_etl_and_enrichments \
+prefect deploy prefect/flows.py:orchestrate_etl_and_enrichments \
   -n etl-and-enrich \
   -p default-pool \
   -q default \
@@ -291,10 +287,7 @@ prefect deployment build prefect/flows.py:orchestrate_etl_and_enrichments \
   --param first_name_column=first_name \
   --param genderize_api_key=null \
   --param genderize_limit=null \
-  --param genderize_rate_per_minute=100 \
-  -o orchestrator_deploy.yaml
-
-prefect deployment apply orchestrator_deploy.yaml
+  --param genderize_rate_per_minute=100
 ```
 
 Then open the Prefect UI (http://127.0.0.1:4200), go to Deployments → `etl-and-enrich/orchestrate_etl_and_enrichments`, click Run, and adjust parameters (API keys, rate limits, etc.) before starting the run. The enrichment steps run in parallel after the transform finishes.
@@ -366,12 +359,12 @@ prefect work-pool create -t process default-pool || true
 prefect worker start -p default-pool  # run in another terminal
 
 # Apply deployments
-prefect deployment apply prefect/deployments/etl.yaml
-prefect deployment apply prefect/deployments/orchestrator.yaml
-prefect deployment apply prefect/deployments/altmetric.yaml
-prefect deployment apply prefect/deployments/overton.yaml
-prefect deployment apply prefect/deployments/sdg.yaml
-prefect deployment apply prefect/deployments/genderize.yaml
+prefect deployments apply prefect/deployments/etl.yaml
+prefect deployments apply prefect/deployments/orchestrator.yaml
+prefect deployments apply prefect/deployments/altmetric.yaml
+prefect deployments apply prefect/deployments/overton.yaml
+prefect deployments apply prefect/deployments/sdg.yaml
+prefect deployments apply prefect/deployments/genderize.yaml
 ```
 
 Edit any YAML to change defaults (paths, columns, rates), then re-apply. You can also override parameters per run in the UI.

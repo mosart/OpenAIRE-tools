@@ -349,157 +349,8 @@ def orchestrate_etl_and_enrichments(
     return results
 
 
-if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Run Prefect flows from this repo")
-    parser.add_argument(
-        "--flow",
-        choices=["etl", "orchestrator", "altmetric", "overton", "sdg", "genderize"],
-        default="etl",
-        help="Select which flow to run",
-    )
-
-    # ETL params
-    parser.add_argument("--url", type=str, default="https://zenodo.org/records/14887484/files/aurora.tar?download=1")
-    parser.add_argument("--base-folder", type=str, default="./data")
-    parser.add_argument("--dataset", type=str, default=None)
-
-    # Common enrichment params
-    parser.add_argument("--input-parquet", type=str, default="")
-    parser.add_argument("--output-parquet", type=str, default="")
-    parser.add_argument("--record-id-column", type=str, default="record_id")
-    parser.add_argument("--limit", type=int, default=None)
-    parser.add_argument("--rate-per-minute", type=float, default=None)
-    parser.add_argument("--big-pause-every", type=int, default=None)
-    parser.add_argument("--big-pause-seconds", type=float, default=0.0)
-
-    # Altmetric
-    parser.add_argument("--id-priority", type=str, default="doi,pmid,pmcid,arxiv_id")
-    parser.add_argument("--altmetric-api-key", type=str, default=None)
-
-    # Overton
-    parser.add_argument("--doi-column", type=str, default="doi")
-    parser.add_argument("--overton-api-key", type=str, default=None)
-
-    # SDG
-    parser.add_argument("--abstract-column", type=str, default="abstract")
-    parser.add_argument("--model", type=str, default="aurora-sdg")
-    parser.add_argument("--min-tokens", type=int, default=100)
-
-    # Genderize
-    parser.add_argument("--first-name-column", type=str, default="first_name")
-    parser.add_argument("--genderize-api-key", type=str, default=None)
-
-    args = parser.parse_args()
-
-    # Derive dataset early for run name clarity
-    dataset_val = (args.dataset or "").strip()
-    if not dataset_val:
-        if args.input_parquet:
-            dataset_val = Path(args.input_parquet).stem
-        elif args.url:
-            fname = args.url.split("/")[-1].split("?")[0]
-            dataset_val = Path(fname).stem
-        else:
-            dataset_val = "dataset"
-
-    if args.flow == "etl":
-        result = process_subgraph_data(url=args.url, base_folder=args.base_folder, dataset=dataset_val)
-        print(result)
-    elif args.flow == "orchestrator":
-        id_priority = [s.strip() for s in (args.id_priority or "").split(",") if s.strip()]
-        result = orchestrate_etl_and_enrichments(
-            url=args.url,
-            base_folder=args.base_folder,
-            input_parquet=(args.input_parquet or None),
-            dataset=dataset_val,
-            enable_altmetric=True,
-            enable_overton=True,
-            enable_sdg=True,
-            enable_genderize=True,
-            record_id_column=args.record_id_column,
-            id_priority=id_priority or ["doi","pmid","pmcid","arxiv_id"],
-            altmetric_api_key=args.altmetric_api_key,
-            altmetric_limit=args.limit,
-            altmetric_rate_per_minute=args.rate_per_minute or 60.0,
-            altmetric_big_pause_every=args.big_pause_every,
-            altmetric_big_pause_seconds=args.big_pause_seconds,
-            doi_column=args.doi_column,
-            overton_api_key=args.overton_api_key,
-            overton_limit=args.limit,
-            overton_rate_per_minute=args.rate_per_minute or 30.0,
-            overton_big_pause_every=args.big_pause_every,
-            overton_big_pause_seconds=args.big_pause_seconds,
-            abstract_column=args.abstract_column,
-            model=args.model,
-            min_tokens=args.min_tokens,
-            sdg_limit=args.limit,
-            sdg_rate_per_minute=args.rate_per_minute or 60.0,
-            sdg_big_pause_every=args.big_pause_every,
-            sdg_big_pause_seconds=args.big_pause_seconds,
-            first_name_column=args.first_name_column,
-            genderize_api_key=args.genderize_api_key,
-            genderize_limit=args.limit,
-            genderize_rate_per_minute=args.rate_per_minute or 100.0,
-            genderize_big_pause_every=args.big_pause_every,
-            genderize_big_pause_seconds=args.big_pause_seconds,
-        )
-        print(result)
-    elif args.flow == "altmetric":
-        id_priority = [s.strip() for s in (args.id_priority or "").split(",") if s.strip()]
-        altmetric_enrichment_flow(
-            input_parquet=args.input_parquet,
-            output_parquet=args.output_parquet,
-            record_id_column=args.record_id_column,
-            id_priority=id_priority,
-            api_key=args.altmetric_api_key,
-            limit=args.limit,
-            rate_per_minute=args.rate_per_minute or 60.0,
-            big_pause_every=args.big_pause_every,
-            big_pause_seconds=args.big_pause_seconds,
-            dataset=dataset_val,
-        )
-    elif args.flow == "overton":
-        overton_enrichment_flow(
-            input_parquet=args.input_parquet,
-            output_parquet=args.output_parquet,
-            record_id_column=args.record_id_column,
-            doi_column=args.doi_column,
-            api_key=args.overton_api_key,
-            limit=args.limit,
-            rate_per_minute=args.rate_per_minute or 30.0,
-            big_pause_every=args.big_pause_every,
-            big_pause_seconds=args.big_pause_seconds,
-            dataset=dataset_val,
-        )
-    elif args.flow == "sdg":
-        aurora_sdg_enrichment_flow(
-            input_parquet=args.input_parquet,
-            output_parquet=args.output_parquet,
-            record_id_column=args.record_id_column,
-            abstract_column=args.abstract_column,
-            model=args.model,
-            min_tokens=args.min_tokens,
-            limit=args.limit,
-            rate_per_minute=args.rate_per_minute or 60.0,
-            big_pause_every=args.big_pause_every,
-            big_pause_seconds=args.big_pause_seconds,
-            dataset=dataset_val,
-        )
-    elif args.flow == "genderize":
-        genderize_enrichment_flow(
-            input_parquet=args.input_parquet,
-            output_parquet=args.output_parquet,
-            record_id_column=args.record_id_column,
-            first_name_column=args.first_name_column,
-            api_key=args.genderize_api_key,
-            limit=args.limit,
-            rate_per_minute=args.rate_per_minute or 100.0,
-            big_pause_every=args.big_pause_every,
-            big_pause_seconds=args.big_pause_seconds,
-            dataset=dataset_val,
-        )
+if False:  # placeholder to maintain patch context
+    pass
 
 
 # -----------------------------
@@ -984,3 +835,156 @@ def genderize_enrichment_flow(
         big_pause_every,
         big_pause_seconds,
     )
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Run Prefect flows from this repo")
+    parser.add_argument(
+        "--flow",
+        choices=["etl", "orchestrator", "altmetric", "overton", "sdg", "genderize"],
+        default="etl",
+        help="Select which flow to run",
+    )
+
+    # ETL params
+    parser.add_argument("--url", type=str, default="https://zenodo.org/records/14887484/files/aurora.tar?download=1")
+    parser.add_argument("--base-folder", type=str, default="./data")
+    parser.add_argument("--dataset", type=str, default=None)
+
+    # Common enrichment params
+    parser.add_argument("--input-parquet", type=str, default="")
+    parser.add_argument("--output-parquet", type=str, default="")
+    parser.add_argument("--record-id-column", type=str, default="record_id")
+    parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument("--rate-per-minute", type=float, default=None)
+    parser.add_argument("--big-pause-every", type=int, default=None)
+    parser.add_argument("--big-pause-seconds", type=float, default=0.0)
+
+    # Altmetric
+    parser.add_argument("--id-priority", type=str, default="doi,pmid,pmcid,arxiv_id")
+    parser.add_argument("--altmetric-api-key", type=str, default=None)
+
+    # Overton
+    parser.add_argument("--doi-column", type=str, default="doi")
+    parser.add_argument("--overton-api-key", type=str, default=None)
+
+    # SDG
+    parser.add_argument("--abstract-column", type=str, default="abstract")
+    parser.add_argument("--model", type=str, default="aurora-sdg")
+    parser.add_argument("--min-tokens", type=int, default=100)
+
+    # Genderize
+    parser.add_argument("--first-name-column", type=str, default="first_name")
+    parser.add_argument("--genderize-api-key", type=str, default=None)
+
+    args = parser.parse_args()
+
+    # Derive dataset early for run name clarity
+    dataset_val = (args.dataset or "").strip()
+    if not dataset_val:
+        if args.input_parquet:
+            dataset_val = Path(args.input_parquet).stem
+        elif args.url:
+            fname = args.url.split("/")[-1].split("?")[0]
+            dataset_val = Path(fname).stem
+        else:
+            dataset_val = "dataset"
+
+    if args.flow == "etl":
+        result = process_subgraph_data(url=args.url, base_folder=args.base_folder, dataset=dataset_val)
+        print(result)
+    elif args.flow == "orchestrator":
+        id_priority = [s.strip() for s in (args.id_priority or "").split(",") if s.strip()]
+        result = orchestrate_etl_and_enrichments(
+            url=args.url,
+            base_folder=args.base_folder,
+            input_parquet=(args.input_parquet or None),
+            dataset=dataset_val,
+            enable_altmetric=True,
+            enable_overton=True,
+            enable_sdg=True,
+            enable_genderize=True,
+            record_id_column=args.record_id_column,
+            id_priority=id_priority or ["doi","pmid","pmcid","arxiv_id"],
+            altmetric_api_key=args.altmetric_api_key,
+            altmetric_limit=args.limit,
+            altmetric_rate_per_minute=args.rate_per_minute or 60.0,
+            altmetric_big_pause_every=args.big_pause_every,
+            altmetric_big_pause_seconds=args.big_pause_seconds,
+            doi_column=args.doi_column,
+            overton_api_key=args.overton_api_key,
+            overton_limit=args.limit,
+            overton_rate_per_minute=args.rate_per_minute or 30.0,
+            overton_big_pause_every=args.big_pause_every,
+            overton_big_pause_seconds=args.big_pause_seconds,
+            abstract_column=args.abstract_column,
+            model=args.model,
+            min_tokens=args.min_tokens,
+            sdg_limit=args.limit,
+            sdg_rate_per_minute=args.rate_per_minute or 60.0,
+            sdg_big_pause_every=args.big_pause_every,
+            sdg_big_pause_seconds=args.big_pause_seconds,
+            first_name_column=args.first_name_column,
+            genderize_api_key=args.genderize_api_key,
+            genderize_limit=args.limit,
+            genderize_rate_per_minute=args.rate_per_minute or 100.0,
+            genderize_big_pause_every=args.big_pause_every,
+            genderize_big_pause_seconds=args.big_pause_seconds,
+        )
+        print(result)
+    elif args.flow == "altmetric":
+        id_priority = [s.strip() for s in (args.id_priority or "").split(",") if s.strip()]
+        altmetric_enrichment_flow(
+            input_parquet=args.input_parquet,
+            output_parquet=args.output_parquet,
+            record_id_column=args.record_id_column,
+            id_priority=id_priority,
+            api_key=args.altmetric_api_key,
+            limit=args.limit,
+            rate_per_minute=args.rate_per_minute or 60.0,
+            big_pause_every=args.big_pause_every,
+            big_pause_seconds=args.big_pause_seconds,
+            dataset=dataset_val,
+        )
+    elif args.flow == "overton":
+        overton_enrichment_flow(
+            input_parquet=args.input_parquet,
+            output_parquet=args.output_parquet,
+            record_id_column=args.record_id_column,
+            doi_column=args.doi_column,
+            api_key=args.overton_api_key,
+            limit=args.limit,
+            rate_per_minute=args.rate_per_minute or 30.0,
+            big_pause_every=args.big_pause_every,
+            big_pause_seconds=args.big_pause_seconds,
+            dataset=dataset_val,
+        )
+    elif args.flow == "sdg":
+        aurora_sdg_enrichment_flow(
+            input_parquet=args.input_parquet,
+            output_parquet=args.output_parquet,
+            record_id_column=args.record_id_column,
+            abstract_column=args.abstract_column,
+            model=args.model,
+            min_tokens=args.min_tokens,
+            limit=args.limit,
+            rate_per_minute=args.rate_per_minute or 60.0,
+            big_pause_every=args.big_pause_every,
+            big_pause_seconds=args.big_pause_seconds,
+            dataset=dataset_val,
+        )
+    elif args.flow == "genderize":
+        genderize_enrichment_flow(
+            input_parquet=args.input_parquet,
+            output_parquet=args.output_parquet,
+            record_id_column=args.record_id_column,
+            first_name_column=args.first_name_column,
+            api_key=args.genderize_api_key,
+            limit=args.limit,
+            rate_per_minute=args.rate_per_minute or 100.0,
+            big_pause_every=args.big_pause_every,
+            big_pause_seconds=args.big_pause_seconds,
+            dataset=dataset_val,
+        )
